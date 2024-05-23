@@ -25,21 +25,21 @@ Set up a Postgres database using a Helm Chart.
 
 1. Set up Bitnami Repo
 ```bash
-helm repo add <REPO_NAME> https://charts.bitnami.com/bitnami
+helm repo add bitnami https://charts.bitnami.com/bitnami
 ```
 
 2. Install PostgreSQL Helm Chart
-```
-helm install <SERVICE_NAME> <REPO_NAME>/postgresql
+```bash
+helm install postgresql-service bitnami/postgresql
 ```
 
-This should set up a Postgre deployment at `<SERVICE_NAME>-postgresql.default.svc.cluster.local` in your Kubernetes cluster. You can verify it by running `kubectl svc`
+This should set up a Postgre deployment at `postgresql-service.default.svc.cluster.local` in your Kubernetes cluster. You can verify it by running `kubectl svc`
 
 By default, it will create a username `postgres`. The password can be retrieved with the following command:
 ```bash
-export POSTGRES_PASSWORD=$(kubectl get secret --namespace default <SERVICE_NAME>-postgresql -o jsonpath="{.data.postgres-password}" | base64 -d)
+export POSTGRES_PASSWORD=$(kubectl get secret --namespace default my-postgres-postgresql  -o jsonpath="{.data.postgres-password}" | base64 -d)
 
-echo $POSTGRES_PASSWORD
+echo $POSTGRES_PASSWORD #Gv1cUjlBOM
 ```
 
 <sup><sub>* The instructions are adapted from [Bitnami's PostgreSQL Helm Chart](https://artifacthub.io/packages/helm/bitnami/postgresql).</sub></sup>
@@ -49,22 +49,22 @@ The database is accessible within the cluster. This means that when you will hav
 
 * Connecting Via Port Forwarding
 ```bash
-kubectl port-forward --namespace default svc/<SERVICE_NAME>-postgresql 5432:5432 &
-    PGPASSWORD="$POSTGRES_PASSWORD" psql --host 127.0.0.1 -U postgres -d postgres -p 5432
+kubectl port-forward --namespace default svc/my-postgres-postgresql 5432:5432 &
+PGPASSWORD= psql --host 127.0.0.1 -U postgres -d postgres -p 5432
 ```
 
 * Connecting Via a Pod
 ```bash
-kubectl exec -it <POD_NAME> bash
-PGPASSWORD="<PASSWORD HERE>" psql postgres://postgres@<SERVICE_NAME>:5432/postgres -c <COMMAND_HERE>
+kubectl exec -it my-postgres-postgresql-0 -- bash
+PGPASSWORD="$POSTGRES_PASSWORD" psql postgres://postgres@my-postgres-postgresql:5432/postgres -c <COMMAND_HERE>
 ```
 
 4. Run Seed Files
 We will need to run the seed files in `db/` in order to create the tables and populate them with data.
 
 ```bash
-kubectl port-forward --namespace default svc/<SERVICE_NAME>-postgresql 5432:5432 &
-    PGPASSWORD="$POSTGRES_PASSWORD" psql --host 127.0.0.1 -U postgres -d postgres -p 5432 < <FILE_NAME.sql>
+export PGPASSWORD=Gv1cUjlBOM
+PGPASSWORD="$POSTGRES_PASSWORD" psql --host 127.0.0.1 -U postgres -d postgres -p 5432 < db/3_seed_tokens.sql
 ```
 
 ### 2. Running the Analytics Application Locally
@@ -72,11 +72,11 @@ In the `analytics/` directory:
 
 1. Install dependencies
 ```bash
-pip install -r requirements.txt
+pip install -r analytics/requirements.txt
 ```
 2. Run the application (see below regarding environment variables)
 ```bash
-<ENV_VARS> python app.py
+DB_USERNAME=postgres DB_PASSWORD=Gv1cUjlBOM python analytics/app.py
 ```
 
 There are multiple ways to set environment variables in a command. They can be set per session by running `export KEY=VAL` in the command line or they can be prepended into your command.
@@ -95,10 +95,10 @@ The benefit here is that it's explicitly set. However, note that the `DB_PASSWOR
 
 3. Verifying The Application
 * Generate report for check-ins grouped by dates
-`curl <BASE_URL>/api/reports/daily_usage`
+`curl 127.0.0.1:5153/api/reports/daily_usage`
 
 * Generate report for check-ins grouped by users
-`curl <BASE_URL>/api/reports/user_visits`
+`curl 127.0.0.1:5153/api/reports/user_visits`
 
 ## Project Instructions
 1. Set up a Postgres database with a Helm Chart
