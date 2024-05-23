@@ -15,7 +15,10 @@ For this project, you are a DevOps engineer who will be collaborating with a tea
 #### Remote Resources
 1. AWS CodeBuild - build Docker images remotely
 2. AWS ECR - host Docker images
-3. Kubernetes Environment with AWS EKS - run applications in k8s
+3. Kubernetes Environment with AWS EKS - run applications in k8s, 2 nodes of t3.small is more than enough
+```bash
+eksctl create cluster --name <cluster_name> --region <region> --nodegroup-name <nodesgroup_name> --node-type t3.small --nodes 2 --nodes-min 2 --nodes-max 2
+```
 4. AWS CloudWatch - monitor activity and logs in EKS
 5. GitHub - pull and clone code
 
@@ -30,16 +33,16 @@ helm repo add bitnami https://charts.bitnami.com/bitnami
 
 2. Install PostgreSQL Helm Chart
 ```bash
-helm install postgresql-service bitnami/postgresql
+helm install postgresql-service bitnami/postgresql --set primary.persistence.enabled=false
 ```
 
-This should set up a Postgre deployment at `postgresql-service.default.svc.cluster.local` in your Kubernetes cluster. You can verify it by running `kubectl svc`
+This should set up a Postgres deployment at `postgresql-service.default.svc.cluster.local` in your Kubernetes cluster. You can verify it by running `kubectl svc`
 
 By default, it will create a username `postgres`. The password can be retrieved with the following command:
 ```bash
 export POSTGRES_PASSWORD=$(kubectl get secret --namespace default my-postgres-postgresql  -o jsonpath="{.data.postgres-password}" | base64 -d)
 
-echo $POSTGRES_PASSWORD #Gv1cUjlBOM
+echo $POSTGRES_PASSWORD 
 ```
 
 <sup><sub>* The instructions are adapted from [Bitnami's PostgreSQL Helm Chart](https://artifacthub.io/packages/helm/bitnami/postgresql).</sub></sup>
@@ -64,7 +67,7 @@ We will need to run the seed files in `db/` in order to create the tables and po
 
 ```bash
 export PGPASSWORD=Gv1cUjlBOM
-PGPASSWORD="$POSTGRES_PASSWORD" psql --host 127.0.0.1 -U postgres -d postgres -p 5432 < db/3_seed_tokens.sql
+PGPASSWORD="$POSTGRES_PASSWORD" psql --host 127.0.0.1 -U postgres -d postgres -p 5432 < db/<NAME_OF_SEED_FILE>
 ```
 
 ### 2. Running the Analytics Application Locally
@@ -76,7 +79,7 @@ pip install -r analytics/requirements.txt
 ```
 2. Run the application (see below regarding environment variables)
 ```bash
-DB_USERNAME=postgres DB_PASSWORD=Gv1cUjlBOM python analytics/app.py
+DB_USERNAME=<DB_USERNAME> DB_PASSWORD=<DB_PASSWORD> python analytics/app.py
 ```
 
 There are multiple ways to set environment variables in a command. They can be set per session by running `export KEY=VAL` in the command line or they can be prepended into your command.
@@ -95,37 +98,66 @@ The benefit here is that it's explicitly set. However, note that the `DB_PASSWOR
 
 3. Verifying The Application
 * Generate report for check-ins grouped by dates
-`curl 127.0.0.1:5153/api/reports/daily_usage`
+`curl <ENDPOINT>/api/reports/daily_usage`
 
 * Generate report for check-ins grouped by users
-`curl 127.0.0.1:5153/api/reports/user_visits`
-
-## Project Instructions
-1. Set up a Postgres database with a Helm Chart
-2. Create a `Dockerfile` for the Python application. Use a base image that is Python-based.
-3. Write a simple build pipeline with AWS CodeBuild to build and push a Docker image into AWS ECR
-4. Create a service and deployment using Kubernetes configuration files to deploy the application
-5. Check AWS CloudWatch for application logs
-
-### Deliverables
-1. `Dockerfile`
-2. Screenshot of AWS CodeBuild pipeline
-3. Screenshot of AWS ECR repository for the application's repository
-4. Screenshot of `kubectl get svc`
-5. Screenshot of `kubectl get pods`
-6. Screenshot of `kubectl describe svc <DATABASE_SERVICE_NAME>`
-7. Screenshot of `kubectl describe deployment <SERVICE_NAME>`
-8. All Kubernetes config files used for deployment (ie YAML files)
-9. Screenshot of AWS CloudWatch logs for the application
-10. `README.md` file in your solution that serves as documentation for your user to detail how your deployment process works and how the user can deploy changes. The details should not simply rehash what you have done on a step by step basis. Instead, it should help an experienced software developer understand the technologies and tools in the build and deploy process as well as provide them insight into how they would release new builds.
+`curl <ENDPOINT>/api/reports/user_visits`
 
 
-### Stand Out Suggestions
-Please provide up to 3 sentences for each suggestion. Additional content in your submission from the standout suggestions do _not_ impact the length of your total submission.
-1. Specify reasonable Memory and CPU allocation in the Kubernetes deployment configuration
-2. In your README, specify what AWS instance type would be best used for the application? Why?
-3. In your README, provide your thoughts on how we can save on costs?
+## 3. Deploy the Analytics Application 
 
-### Best Practices
-* Dockerfile uses an appropriate base image for the application being deployed. Complex commands in the Dockerfile include a comment describing what it is doing.
-* The Docker images use semantic versioning with three numbers separated by dots, e.g. `1.2.1` and  versioning is visible in the  screenshot. See [Semantic Versioning](https://semver.org/) for more details.
+* Create a Dockerfile for the Python Application
+Dockerfile
+[Dockerfile](./Dockerfile)
+
+* Write a Build Pipeline with AWS CodeBuild
+
+buildspec File
+[buildspec](./buildspec.yml)
+
+* Create CodeBuild and add the necessary ECR permissions to CodeBuild iam Role
+![BulidCode history](screenshots/Codebuild.png)
+
+* Deploy the application
+   ```bash
+   kubectl apply -f deployment/
+   ```
+* Test the deployment
+Get the svc External-IP and run the curl command. Per example:
+```bash
+   kubectl get svc
+   curl acc2cdf573a3f43fdb710b32339cc23f-1079164203.eu-central-1.elb.amazonaws.com/api/reports/daily_usage
+ ```
+
+## Create Kubernetes Service and Deployment
+1. List Services
+   ```bash
+   kubectl get svc
+   kubectl describe svc
+   ```
+   List Services
+   ![List Services](screenshots/Kubectl_get_svc.png)
+   List Describe Services Kubernetes
+   ![List Describe Services](screenshots/kubectl_describe_svc_coworking.png)
+   ![List Describe Services](screenshots/kubectl_describe_svc_postgres.png)
+
+
+3. List Pods
+   ```bash
+   kubectl get pods
+   kubectl describe pods
+   kubectl logs <pod_name>
+   ```
+   List Pods
+   ![List Pods](screenshots/kubectl_get_pods.png)
+   Get Pods Logs for debug
+   ![Pods Logs](screenshots/kubectl_logs_application.png)
+   
+4. List Deployments
+   ```bash
+   kubectl get deployments
+   kubectl describe deployment project3-api
+   ```
+   List Describe Deployments
+   ![List Deployments](screenshots/kubectl_describe_deployment_coworking.png)
+
