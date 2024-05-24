@@ -137,6 +137,7 @@ Get the svc External-IP and run the curl command. Per example:
    ```
    List Services
    ![List Services](screenshots/Kubectl_get_svc.png)
+
    List Describe Services Kubernetes
    ![List Describe Services](screenshots/kubectl_describe_svc_coworking.png)
    ![List Describe Services](screenshots/kubectl_describe_svc_postgres.png)
