@@ -116,7 +116,7 @@ buildspec File
 [buildspec](./buildspec.yml)
 
 * Create CodeBuild and add the necessary ECR permissions to CodeBuild iam Role
-![BulidCode history](screenshots/CodeBud.png)
+![BulidCode history](screenshots/CodeBuild.png)
 
 * Deploy the application
    ```bash
